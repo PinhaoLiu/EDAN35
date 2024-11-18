@@ -14,7 +14,7 @@ Ray Intersection::getReflectedRay(void) {
 
     // TODO: Implement reflection
     // -------------------
-    Vec3 R = D;
+    Vec3 R = D - 2 * (D * N) * N;
     // -------------------
 
     return Ray(position, R, 0.01f, FLT_MAX);
@@ -28,7 +28,10 @@ Ray Intersection::getRefractedRay(void) {
 
     // TODO: Implement refraction
     // -------------------
-    Vec3 R = D;
+    auto r = -D * N;
+    auto c = 1.0f - powf(eta, 2.0f) * (1.0f - powf(r, 2.0f));
+    Vec3 R = eta * D + (eta * r - sqrtf(c)) * N;
+    if (c < 0.0f) R = D - 2 * (D * N) * N;
     // -------------------
 
     return Ray(position, R, 0.01f, FLT_MAX);

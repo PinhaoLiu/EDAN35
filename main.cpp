@@ -63,14 +63,31 @@ Color traceRay(const Ray &r, Scene scene, int depth) {
     lightDir.normalize();
 
     directColor = Color(1.0f, 1.0f, 1.0f);
+    
+    c = hit.material.color * (hit.normal * lightDir);
 
-    c = directColor;
+    auto shadowRay = hit.getShadowRay(lightPos);
+    if (scene.intersect(shadowRay, shadow)) c = Color(0.0f, 0.0f, 0.0f);
+    
+    auto reflectivity = hit.material.reflectivity;
+    if (reflectivity > 0.0f) {
+        auto reflectRay = hit.getReflectedRay();
+        reflectedColor = traceRay(reflectRay, scene, depth - 1);
+    }
 
-    return c;
+    auto transparency = hit.material.transparency;
+    if (transparency > 0.0f) {
+        auto refractRay = hit.getRefractedRay();
+        refractedColor = traceRay(refractRay, scene, depth - 1);
+    }
+
+    return reflectedColor * reflectivity +
+        refractedColor * transparency +
+        (1.0f - reflectivity - transparency) * c;
 }
 
 int main() {
-    const int imageWidth = 512;
+    const int imageWidth = 1024;
     const int imageHeight = imageWidth;
     const int numChannels = 3;
     uint8_t *pixels = new uint8_t[imageWidth * imageHeight * numChannels];
@@ -80,6 +97,11 @@ int main() {
     Material greenDiffuse = Material(Color(0.1f, 0.6f, 0.1f), 0.0f, 0.0f, 1.0f);
     Material redDiffuse = Material(Color(1.0f, 0.1f, 0.1f), 0.0f, 0.0f, 1.0f);
     Material blueDiffuse = Material(Color(0.0f, 0.2f, 0.9f), 0.0f, 0.0f, 1.0f);
+
+    auto whiteReflective = Material(Color(0.9f, 0.9f, 0.9f), 0.1f, 0.0f, 1.0f);
+    auto greenReflective = Material(Color(0.1f, 0.6f, 0.1f), 0.1f, 0.0f, 1.0f);
+    auto redReflective = Material(Color(1.0f, 0.1f, 0.1f), 0.1f, 0.0f, 1.0f);
+    auto blueReflective = Material(Color(0.0f, 0.2f, 0.9f), 0.1f, 0.0f, 1.0f);
     Material yellowReflective = Material(Color(1.0f, 0.6f, 0.1f), 0.2f, 0.0f, 1.0f);
     Material transparent = Material(Color(1.0f, 1.0f, 1.0f), 0.2f, 0.8f, 1.3f);
 
@@ -87,9 +109,9 @@ int main() {
     Scene scene;
 
     // Add three spheres with diffuse material
-    scene.push(Sphere(Vec3(-7.0f, 3.0f, -20.0f), 3.0f, greenDiffuse));
-    scene.push(Sphere(Vec3(0.0f, 3.0f, -20.0f), 3.0f, blueDiffuse));
-    scene.push(Sphere(Vec3(7.0f, 3.0f, -20.0f), 3.0f, redDiffuse));
+    scene.push(Sphere(Vec3(-7.0f, 3.0f, -20.0f), 3.0f, greenReflective));
+    scene.push(Sphere(Vec3(0.0f, 3.0f, -20.0f), 3.0f, blueReflective));
+    scene.push(Sphere(Vec3(7.0f, 3.0f, -20.0f), 3.0f, redReflective));
 
     // Define vertices for Cornell box
     Vec3 vertices[] = {
@@ -106,26 +128,26 @@ int main() {
     };
 
     // TODO: Uncomment to render floor triangles
-    // scene.push(Triangle(&vertices[0], whiteDiffuse)); // Floor 1
-    // scene.push(Triangle(&vertices[3], whiteDiffuse)); // Floor 2
+    scene.push(Triangle(&vertices[0], whiteReflective)); // Floor 1
+    scene.push(Triangle(&vertices[3], whiteReflective)); // Floor 2
 
     // TODO: Uncomment to render Cornell box
-    // scene.push(Triangle(&vertices[6], whiteDiffuse));  // Back wall 1
-    // scene.push(Triangle(&vertices[9], whiteDiffuse));  // Back wall 2
-    // scene.push(Triangle(&vertices[12], whiteDiffuse)); // Ceiling 1
-    // scene.push(Triangle(&vertices[15], whiteDiffuse)); // Ceiling 2
-    // scene.push(Triangle(&vertices[18], redDiffuse));   // Red wall 1
-    // scene.push(Triangle(&vertices[21], redDiffuse));   // Red wall 2
-    // scene.push(Triangle(&vertices[24], greenDiffuse)); // Green wall 1
-    // scene.push(Triangle(&vertices[27], greenDiffuse)); // Green wall 2
+    scene.push(Triangle(&vertices[6], whiteReflective)); // Back wall 1
+    scene.push(Triangle(&vertices[9], whiteReflective)); // Back wall 2
+    scene.push(Triangle(&vertices[12], whiteReflective)); // Ceiling 1
+    scene.push(Triangle(&vertices[15], whiteReflective)); // Ceiling 2
+    scene.push(Triangle(&vertices[18], redReflective));   // Red wall 1
+    scene.push(Triangle(&vertices[21], redReflective));   // Red wall 2
+    scene.push(Triangle(&vertices[24], greenReflective)); // Green wall 1
+    scene.push(Triangle(&vertices[27], greenReflective)); // Green wall 2
 
     // TODO: Uncomment to render reflective spheres
-    // scene.push(Sphere(Vec3(7.0f, 3.0f, 0.0f), 3.0f, yellowReflective));
-    // scene.push(Sphere(Vec3(9.0f, 10.0f, 0.0f), 3.0f, yellowReflective));
+    scene.push(Sphere(Vec3(7.0f, 3.0f, 0.0f), 3.0f, yellowReflective));
+    scene.push(Sphere(Vec3(9.0f, 10.0f, 0.0f), 3.0f, yellowReflective));
 
     // TODO: Uncomment to render refractive spheres
-    // scene.push(Sphere(Vec3(-7.0f, 3.0f, 0.0f), 3.0f, transparent));
-    // scene.push(Sphere(Vec3(-9.0f, 10.0f, 0.0f), 3.0f, transparent));
+    scene.push(Sphere(Vec3(-7.0f, 3.0f, 0.0f), 3.0f, transparent));
+    scene.push(Sphere(Vec3(-9.0f, 10.0f, 0.0f), 3.0f, transparent));
 
     // Setup camera
     Vec3 eye(0.0f, 10.0f, 30.0f);
@@ -143,13 +165,31 @@ int main() {
 
             Color pixel;
 
+            int n{3};
+
+            auto p = std::vector<Color>(n * n);
+
+            for (int k = 0; k < n; k++) {
+                for (int l = 0; l < n; l++) {
+                    float cx = ((float)i) + (uniform() + 2.0f * l) / n;
+                    float cy = ((float)j) + (uniform() + 2.0f * k) / n;
+                    auto r = camera.getRay(cx, cy);
+                    p.push_back(traceRay(r, scene, depth));
+                }
+            }
+
+            for (auto i : p)
+                pixel += i;
+            
+            pixel *= 1.0f / n / n;
+
             // Get center of pixel coordinate
-            float cx = ((float)i) + 0.5f;
-            float cy = ((float)j) + 0.5f;
+            // float cx = ((float)i) + 0.5f;
+            // float cy = ((float)j) + 0.5f;
 
             // Get a ray and trace it
-            Ray r = camera.getRay(cx, cy);
-            pixel = traceRay(r, scene, depth);
+            // Ray r = camera.getRay(cx, cy);
+            // pixel = traceRay(r, scene, depth);
 
             // Write pixel value to image
             writeColor((j * imageWidth + i) * numChannels, pixel, pixels);
