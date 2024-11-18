@@ -167,19 +167,14 @@ int main() {
 
             int n{3};
 
-            auto p = std::vector<Color>(n * n);
-
             for (int k = 0; k < n; k++) {
                 for (int l = 0; l < n; l++) {
                     float cx = ((float)i) + (uniform() + 2.0f * l) / n;
                     float cy = ((float)j) + (uniform() + 2.0f * k) / n;
                     auto r = camera.getRay(cx, cy);
-                    p.push_back(traceRay(r, scene, depth));
+                    pixel += traceRay(r, scene, depth);
                 }
             }
-
-            for (auto i : p)
-                pixel += i;
             
             pixel *= 1.0f / n / n;
 
