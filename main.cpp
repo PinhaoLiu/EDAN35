@@ -157,7 +157,7 @@ int main() {
     camera.setup(imageWidth, imageHeight);
 
     // Ray trace pixels
-    int depth = 3;
+    int depth = 7;
     std::cout << "Rendering... ";
     clock_t start = clock();
     for (int j = 0; j < imageHeight; ++j) {
@@ -165,12 +165,12 @@ int main() {
 
             Color pixel;
 
-            int n{3};
+            int n{7};
 
             for (int k = 0; k < n; k++) {
                 for (int l = 0; l < n; l++) {
-                    float cx = ((float)i) + (uniform() + 2.0f * l) / n;
-                    float cy = ((float)j) + (uniform() + 2.0f * k) / n;
+                    float cx = ((float)i) + (uniform() + l) / n;
+                    float cy = ((float)j) + (uniform() + k) / n;
                     auto r = camera.getRay(cx, cy);
                     pixel += traceRay(r, scene, depth);
                 }
